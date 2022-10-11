@@ -1,0 +1,62 @@
+#! /bin/bash
+
+#add your slack channel and webhook for notification
+notify() {
+  WEBHOOK="https://hooks.slack.com/services/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"
+  SLACK_CHANNEL="ssl-checker"
+  SLACK_BOTNAME="SSL Checker"
+
+  DOMAIN="$1"
+  EXPIRY_DAYS="$2"
+  EXPIRY_DATE="$3"
+  ISSUER="$4"
+  COLOR="$5"
+
+  SLACK_PAYLOAD="payload={\"channel\":\"${SLACK_CHANNEL}\",\"icon_emoji\":\":skull:\",\"username\":\"${SLACK_BOTNAME}\",\"attachments\":[{\"color\":\"${COLOR}\",\"fields\":[{\"title\":\"Domain:\",\"value\":\"${DOMAIN}\",\"short\":true},{\"title\":\"Expiry day(s):\",\"value\":\"${EXPIRY_DAYS}\",\"short\":true},{\"title\":\"Expiry date:\",\"value\":\"$EXPIRY_DATE\",\"short\":true},{\"title\":\"Issued by:\",\"value\":\"$ISSUER\",\"short\":true}]}]}"
+  curl -X POST --data-urlencode "$SLACK_PAYLOAD" $WEBHOOK
+}
+
+#Put your domains you want to ssl-checking in the <domains> file
+domains=($(cat domains | grep domain | awk '{print $2}'))
+
+
+for site in ${domains[@]}
+
+do
+      #### Read Site Certificate Data And Save As Avariable
+      
+      data=`echo | openssl s_client -showcerts -servername $site -connect $site:443 2>/dev/null | openssl x509 -noout -enddate -issuer`
+      
+      ####Get Full Expiratoin Date
+      expiry_date=$(echo $data | grep -Eo "notAfter=(.*)GMT" | cut -d "=" -f 2)
+      issuer=$(echo $data | grep -Eo "CN=(.*)"| cut -d "=" -f 2)
+      
+      ###Convert Expiration Date in Epoch Format
+      expiry_epoch=$(date -d "$expiry_date" +%s)
+      
+      ### Get Curent Date in Epoch Format
+      now_epoch=$( date +%s )
+      
+      ### Calculate Time Difference And Get The Expiry Days
+
+      expiry_days="$(( ($expiry_epoch - $now_epoch) / (3600 * 24) ))"
+      name="$site"
+
+     ###Checking If Expires In Less Than {30..1} Days
+
+      for i in {30..1}
+      do
+	      
+	      if [ $expiry_days -lt $i ]
+	     then
+                 color="#ff0000"
+                 notify "$name" "$expiry_days" "$expiry_date" "$issuer" "$color"
+             else
+                 color="#2eb886"
+                 notify "$name" "$expiry_days" "$expiry_date" "$issuer" "$color"
+		 break
+             fi
+      done
+
+
+done
