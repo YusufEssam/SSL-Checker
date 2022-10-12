@@ -2,7 +2,7 @@
 
 #add your slack channel and webhook for notification
 notify() {
-  WEBHOOK="https://hooks.slack.com/services/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"
+  WEBHOOK="add your webhook"
   SLACK_CHANNEL="ssl-checker"
   SLACK_BOTNAME="SSL Checker"
 
